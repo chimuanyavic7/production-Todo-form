@@ -380,6 +380,7 @@ spec:
 
 ### clone the Git repo
 ```
+git clone https://github.com/chimuanyavic7/production-Todo-form.git
 ```
 
 - Verify cluster:
