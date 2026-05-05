@@ -27,42 +27,40 @@ The system consists of:
 The application is containerized using Docker and deployed on a managed Kubernetes cluster (AWS EKS). Infrastructure is provisioned with Terraform, while deployments are managed through a GitOps workflow using ArgoCD. The platform is designed for scalability, resilience, and continuous delivery.
 
 
-- Continuous Integration Continuous Delivery(CI/CD)
+- **Continuous Integration Continuous Delivery(CI/CD):**
 A CI pipeline GitHub Actions is automatically triggered on each commit, The pipeline performs:
-Application build (React frontend and Node.js backend), testing and validation Docker image creation for each service, Image tagging using versioning, Build Docker images are pushed to DockerHub, then updates Helm charts A GitOps tool (like Argo CD) deploys the changes automatically to EKS. 
+Application build (React frontend and Node.js backend), testing and validation Docker image creation for each service, Image tagging using versioning, Build Docker images are pushed to DockerHub, then updates Helm charts A GitOps tool (like Argo CD) deploys the changes automatically to EKS. DockerHub username and Token were stored in the secret and variable of Github
 These images are immutable and used as deployment artifacts across environments.
 
-- Infrastructure as Code (Terraform)
+- **Infrastructure as Code (Terraform)**
 Terraform is used to provision AWS resources, including the EKS cluster, networking (VPC, subnets, nat_gatway Route Tables, Security Groups), and node groups. The configuration leverages reusable modules and includes cluster autoscaling.
 
 <img src="./images/vpc.png">
 <img src="./images/k8s.png">
 
 
-- Containerization & Registry (Docker & DockerHub)
+- **Containerization & Registry (Docker & DockerHub)**
 Each service (React frontend, Node.js backend, MongoDB) is containerized using Docker. Images are stored in DockerHub and versioned for traceability.
 
-- Container Orchestration (AWS EKS)
+- **Container Orchestration (AWS EKS)**
 Kubernetes (EKS) manages application deployment, scaling, and service discovery. Workloads are deployed as pods and exposed via services and ingress.
 
-- Package Management (Helm)
+- **Package Management (Helm)**
 Helm charts are used to define and manage Kubernetes resources for each application component, enabling consistent and repeatable deployments.
 
-- GitOps Deployment (ArgoCD)
+- **GitOps Deployment (ArgoCD)**
 ArgoCD continuously monitors the Git repository and ensures that the cluster state matches the declared configuration. Any changes pushed to Git are automatically synchronized to the cluster.
 
-- Auto Scaling (Cluster Autoscaler)
+- **Auto Scaling (Cluster Autoscaler)**
 The Kubernetes cluster dynamically adjusts node capacity based on workload demands, optimizing cost and performance.
 
-- Monitoring & Observability
+- **Monitoring & Observability**
 Prometheus: Collects metrics from Kubernetes and application services
 Grafana: Visualizes metrics through dashboards
 AWS CloudWatch: Provides infrastructure-level logging and monitoring
 
 
-### Deployment steps
-
-
+### **Deployment steps**
 
 Containerization is the process of packaging an application and its dependencies into a container.  Containerization allows you to run the application in a consistent environment, regardless of the underlying infrastructure.
 
