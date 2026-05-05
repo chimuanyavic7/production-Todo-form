@@ -35,8 +35,12 @@ These images are immutable and used as deployment artifacts across environments.
 - **Infrastructure as Code (Terraform)**
 Terraform is used to provision AWS resources, including the EKS cluster, networking (VPC, subnets, nat_gatway Route Tables, Security Groups), and node groups. The configuration leverages reusable modules and includes cluster autoscaling.
 
-<img src="./images/vpc.png">
-<img src="./images/k8s.png">
+
+![vpc](Images/vpc.png)
+
+![k8s](Images/k8s.png)
+
+
 
 
 - **Containerization & Registry (Docker & DockerHub)**
