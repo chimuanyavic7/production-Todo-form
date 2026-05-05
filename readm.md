@@ -469,6 +469,5 @@ alb.ingress.kubernetes.io/ssl-redirect: '443'
 Final Production Routing:
 
 ### Traffic Flow
-<image src='./images/traffic.png'>
-
+![Traffic Flow](Images/traffic.png)
 
