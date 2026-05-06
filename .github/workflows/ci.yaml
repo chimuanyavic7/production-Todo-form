@@ -55,12 +55,17 @@ jobs:
         with:
           node-version: 20
 
-      - name: Frontend Tests
+      - name: Frontend Install & Test
         if: needs.changes.outputs.frontend == 'true'
         run: |
           cd frontend
-          npm ci
-          npm test || true
+          if [ -f package.json ]; then
+            npm ci
+            npm test
+          else
+            echo "No frontend project found"
+            exit 0
+          fi
 
       - name: Backend Tests
         if: needs.changes.outputs.backend == 'true'
