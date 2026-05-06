@@ -170,6 +170,13 @@ jobs:
           context: frontend
           push: true
           tags: ${{ env.IMAGE_NAME }}/frontend-dev:${{ env.VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Security: provenance and SBOM
+          provenance: true
+          sbom: true
+
+
 
       - name: Build & Push Backend
         if: needs.changes.outputs.backend == 'true'
