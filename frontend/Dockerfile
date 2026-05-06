@@ -20,7 +20,7 @@ ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build
 
 # Stage 2: Serve with Nginx
-FROM nginx:alpine
+FROM nginx:1.27-alpine AS production
 
 # Remove default Nginx content
 RUN rm -rf /usr/share/nginx/html/*
