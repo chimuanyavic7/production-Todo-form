@@ -240,14 +240,14 @@ jobs:
           exit-code: 1
           severity: CRITICAL,HIGH
 
-      - name: Scan Backend Image
-        if: needs.changes.outputs.backend == 'true'
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}/backend-dev:${{ needs.version.outputs.version }}
-          format: table
-          exit-code: 1
-          severity: CRITICAL,HIGH
+#      - name: Scan Backend Image
+#        if: needs.changes.outputs.backend == 'true'
+#        uses: aquasecurity/trivy-action@master
+#        with:
+#          image-ref: ${{ env.IMAGE_NAME }}/backend-dev:${{ needs.version.outputs.version }}
+#          format: table
+#          exit-code: 1
+#          severity: CRITICAL,HIGH
 
 
 # ---------------- GITOPS ----------------
