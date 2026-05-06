@@ -21,6 +21,7 @@ RUN npm run build
 
 # Stage 2: Serve with Nginx
 FROM nginx:1.27-alpine AS production
+RUN apk update && apk upgrade
 
 # Remove default Nginx content
 RUN rm -rf /usr/share/nginx/html/*
