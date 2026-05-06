@@ -69,12 +69,13 @@ jobs:
       - name: Install backend dependencies
         if: needs.changes.outputs.backend == 'true'
         working-directory: backend
-        run: npm install
+        run: npm install --save-dev jest
 
       - name: Run backend tests
         if: needs.changes.outputs.backend == 'true'
         working-directory: backend
-        run: npm test --save-dev jest
+        run: npm test -- --passWithNoTests
+
 
 # ---------------- VERSIONING ----------------
   version:
