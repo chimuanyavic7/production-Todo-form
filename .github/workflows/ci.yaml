@@ -64,7 +64,7 @@ jobs:
 
       # Backend tests (only if changed)
       - name: backend Install & Test
-        if: needs.changes.outputs.backtend == 'true'
+        if: needs.changes.outputs.backend == 'true'
         run: |
           cd backend
           if [ -f package.json ]; then
