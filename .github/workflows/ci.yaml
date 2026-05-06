@@ -74,7 +74,7 @@ jobs:
       - name: Run backend tests
         if: needs.changes.outputs.backend == 'true'
         working-directory: backend
-        run: npm test -- --passWithNoTests
+        run: npm test --save-dev jest
 
 # ---------------- VERSIONING ----------------
   version:
