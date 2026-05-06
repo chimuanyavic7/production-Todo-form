@@ -245,7 +245,7 @@ jobs:
   gitops:
     name: Deploy via ArgoCD
     runs-on: ubuntu-latest
-    needs: [validate, version, changes]
+    needs: [validate, version, changes, image-scan]
 
     steps:
       - uses: actions/checkout@v4
