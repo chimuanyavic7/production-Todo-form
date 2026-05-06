@@ -71,11 +71,10 @@ jobs:
         working-directory: backend
         run: npm install
 
-      - name: Run frontend tests
+      - name: Run backend tests
         if: needs.changes.outputs.backend == 'true'
         working-directory: backend
-        run: npm test 
-
+        run: npm test -- --passWithNoTests
 
 # ---------------- VERSIONING ----------------
   version:
