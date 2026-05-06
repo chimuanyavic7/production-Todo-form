@@ -196,36 +196,36 @@ jobs:
 
 # ---------------- IMAGE SCAN ----------------
   image-scan:
-  name: "🔬 Scan ${{ matrix.component }} Image"
-  runs-on: ubuntu-latest
-  needs: [docker, changes]
+    name: "🔬 Scan ${{ matrix.component }} Image"
+    runs-on: ubuntu-latest
+    needs: [docker, changes]
 
-  strategy:
-    matrix:
-      component: [frontend, backend]
+    strategy:
+      matrix:
+        component: [frontend, backend]
 
-  if: |
-    (matrix.component == 'frontend' && needs.changes.outputs.frontend == 'true') ||
-    (matrix.component == 'backend' && needs.changes.outputs.backend == 'true')
+    if: |
+      (matrix.component == 'frontend' && needs.changes.outputs.frontend == 'true') ||
+      (matrix.component == 'backend' && needs.changes.outputs.backend == 'true')
 
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Build image for scanning
-      run: |
-        docker build -t ${{ secrets.DOCKERHUB_USERNAME }}-${{ matrix.component }}:scan ./${{ matrix.component }}
+      - name: Build image for scanning
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}-${{ matrix.component }}:scan ./${{ matrix.component }}
 
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: "${{ secrets.DOCKERHUB_USERNAME }}-${{ matrix.component }}:scan"
-        format: "table"
-        exit-code: "1"
-        ignore-unfixed: true
-        vuln-type: "os,library"
-        severity: "CRITICAL,HIGH"
-        timeout: "10m"
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ secrets.DOCKERHUB_USERNAME }}-${{ matrix.component }}:scan"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH"
+          timeout: "10m"
 
 
 
