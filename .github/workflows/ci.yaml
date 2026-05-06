@@ -11,19 +11,69 @@ on:
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
-# 🔐 IMPORTANT: gives GitHub Actions permission to push back to repo
 permissions:
   contents: write
 
 jobs:
 
+# ---------------- DETECT CHANGES ----------------
+  changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect frontend/backend changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'backend/**'
+
+
 # ---------------- CI ----------------
   ci:
     name: Build & Test
     runs-on: ubuntu-latest
+    needs: changes
 
     steps:
       - uses: actions/checkout@v4
+
+      # Frontend tests (only if changed)
+      - name: Frontend Install & Test
+        if: needs.changes.outputs.frontend == 'true'
+        run: |
+          cd frontend
+          if [ -f package.json ]; then
+            npm ci
+            npm test
+          else
+            echo "No frontend project found"
+            exit 0
+          fi
+
+
+      # Backend tests (only if changed)
+      - name: backend Install & Test
+        if: needs.changes.outputs.frontend == 'true'
+        run: |
+          cd backend
+          if [ -f package.json ]; then
+            npm ci
+            npm test
+          else
+            echo "No backend project found"
+            exit 0
+          fi
 
 # ---------------- VERSION ----------------
   version:
@@ -95,11 +145,12 @@ jobs:
           git tag ${{ steps.bump.outputs.version }}
           git push origin ${{ steps.bump.outputs.version }}
 
+
 # ---------------- DOCKER ----------------
   docker:
     name: Build & Push Images
     runs-on: ubuntu-latest
-    needs: version
+    needs: [version, changes]
 
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -113,19 +164,71 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # FRONTEND IMAGE (only if changed)
       - name: Build & Push Frontend
+        if: needs.changes.outputs.frontend == 'true'
         uses: docker/build-push-action@v5
         with:
           context: frontend
           push: true
           tags: ${{ env.IMAGE_NAME }}/frontend-dev:${{ env.VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Security: provenance and SBOM
+          provenance: true
+          sbom: true
 
+      # BACKEND IMAGE (only if changed)
       - name: Build & Push Backend
+        if: needs.changes.outputs.backend == 'true'
         uses: docker/build-push-action@v5
         with:
           context: backend
           push: true
           tags: ${{ env.IMAGE_NAME }}/backend-dev:${{ env.VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Security: provenance and SBOM
+          provenance: true
+          sbom: true
+
+
+
+# ---------------- IMAGE SCAN ----------------
+  image-scan:
+  name: "🔬 Scan ${{ matrix.component }} Image"
+  runs-on: ubuntu-latest
+  needs: [docker, changes]
+
+  strategy:
+    matrix:
+      component: [frontend, backend]
+
+  if: |
+    (matrix.component == 'frontend' && needs.changes.outputs.frontend == 'true') ||
+    (matrix.component == 'backend' && needs.changes.outputs.backend == 'true')
+
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build image for scanning
+      run: |
+        docker build -t ${{ secrets.DOCKERHUB_USERNAME }}-${{ matrix.component }}:scan ./${{ matrix.component }}
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: "${{ secrets.DOCKERHUB_USERNAME }}-${{ matrix.component }}:scan"
+        format: "table"
+        exit-code: "1"
+        ignore-unfixed: true
+        vuln-type: "os,library"
+        severity: "CRITICAL,HIGH"
+        timeout: "10m"
+
+
+
 
 # ---------------- HELM VALIDATION ----------------
   validate:
@@ -145,6 +248,7 @@ jobs:
           helm template helm/todo-app \
             --set frontend.tag=${{ needs.version.outputs.version }} \
             --set backend.tag=${{ needs.version.outputs.version }}
+
 
 # ---------------- GITOPS ----------------
   gitops:
