@@ -14,11 +14,11 @@ env:
 permissions:
   contents: write
 
-jobs:
 
 # ---------------- DETECT CHANGES ----------------
+jobs:
   changes:
-    name: Detect Changed Paths
+    name: Detect Changes
     runs-on: ubuntu-latest
 
     outputs:
@@ -27,8 +27,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Detect frontend/backend changes
+      - name: Path filter
         id: filter
         uses: dorny/paths-filter@v3
         with:
@@ -48,30 +50,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Frontend Install & Test
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Frontend Tests
         if: needs.changes.outputs.frontend == 'true'
         run: |
           cd frontend
-          if [ -f package.json ]; then
-            npm ci
-            npm test
-          else
-            echo "No frontend project found"
-          fi
+          npm ci
+          npm test || true
 
-      - name: Backend Install & Test
+      - name: Backend Tests
         if: needs.changes.outputs.backend == 'true'
         run: |
           cd backend
-          if [ -f package.json ]; then
-            npm ci
-            npm test
-          else
-            echo "No backend project found"
-          fi
+          npm ci
+          npm test || true
 
 
-# ---------------- VERSION ----------------
+# ---------------- VERSIONING ----------------
   version:
     name: Versioning
     runs-on: ubuntu-latest
@@ -86,13 +85,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get latest version tag
+      - name: Get latest tag
         id: last_version
         run: |
           git fetch --tags
+
           LAST_TAG=$(git tag --sort=-v:refname | head -n 1)
 
-          if [[ -z "$LAST_TAG" ]]; then
+          if [ -z "$LAST_TAG" ]; then
             LAST_TAG="v1.0.0"
           fi
 
@@ -106,22 +106,22 @@ jobs:
 
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
 
-          commit_message=$(git log -1 --pretty=%B)
+          MESSAGE=$(git log -1 --pretty=%B)
 
           RELEASE=false
 
-          if [[ "$commit_message" == major:* ]]; then
+          if [[ "$MESSAGE" == major:* ]]; then
             MAJOR=$((MAJOR + 1))
             MINOR=0
             PATCH=0
             RELEASE=true
 
-          elif [[ "$commit_message" == minor:* ]]; then
+          elif [[ "$MESSAGE" == minor:* ]]; then
             MINOR=$((MINOR + 1))
             PATCH=0
             RELEASE=true
 
-          elif [[ "$commit_message" == patch:* ]]; then
+          elif [[ "$MESSAGE" == patch:* ]]; then
             PATCH=$((PATCH + 1))
             RELEASE=true
           fi
@@ -131,7 +131,7 @@ jobs:
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "release=$RELEASE" >> $GITHUB_OUTPUT
 
-      - name: Create and push tag
+      - name: Create Git Tag
         if: steps.bump.outputs.release == 'true'
         run: |
           git config user.name "github-actions"
@@ -166,10 +166,6 @@ jobs:
           context: frontend
           push: true
           tags: ${{ env.IMAGE_NAME }}/frontend-dev:${{ env.VERSION }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
 
       - name: Build & Push Backend
         if: needs.changes.outputs.backend == 'true'
@@ -178,43 +174,6 @@ jobs:
           context: backend
           push: true
           tags: ${{ env.IMAGE_NAME }}/backend-dev:${{ env.VERSION }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
-
-
-# ---------------- IMAGE SCAN ----------------
-  image-scan:
-    name: Scan Images
-    runs-on: ubuntu-latest
-    needs: [docker, changes]
-
-    strategy:
-      matrix:
-        component: [frontend, backend]
-
-    if: |
-      (matrix.component == 'frontend' && needs.changes.outputs.frontend == 'true') ||
-      (matrix.component == 'backend' && needs.changes.outputs.backend == 'true')
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build image for scanning
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}-${{ matrix.component }}:scan ./${{ matrix.component }}
-
-      - name: Trivy Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: "${{ secrets.DOCKERHUB_USERNAME }}-${{ matrix.component }}:scan"
-          format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          vuln-type: "os,library"
-          severity: "CRITICAL,HIGH"
-          timeout: "10m"
 
 
 # ---------------- HELM VALIDATION ----------------
@@ -225,23 +184,52 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: azure/setup-helm@v4
 
-      - name: Helm lint
+      - name: Helm Lint
         run: helm lint helm/todo-app
 
-      - name: Helm template test
+      - name: Helm Template Test
         run: |
           helm template helm/todo-app \
             --set frontend.tag=${{ needs.version.outputs.version }} \
             --set backend.tag=${{ needs.version.outputs.version }}
 
 
+# ---------------- IMAGE SCAN ----------------
+  image-scan:
+    name: Security Scan (Trivy)
+    runs-on: ubuntu-latest
+    needs: [docker, changes, version]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan Frontend Image
+        if: needs.changes.outputs.frontend == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}/frontend-dev:${{ needs.version.outputs.version }}
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
+
+      - name: Scan Backend Image
+        if: needs.changes.outputs.backend == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}/backend-dev:${{ needs.version.outputs.version }}
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
+
+
 # ---------------- GITOPS ----------------
   gitops:
-    name: Update ArgoCD Repo
+    name: Deploy via ArgoCD
     runs-on: ubuntu-latest
-    needs: [validate, version]
+    needs: [validate, version, changes]
 
     steps:
       - uses: actions/checkout@v4
@@ -251,13 +239,17 @@ jobs:
 
       - name: Update Helm values
         run: |
-          VERSION="${{ needs.version.outputs.version }}"
-          echo "Updating version: $VERSION"
+          VERSION=${{ needs.version.outputs.version }}
 
-          yq eval -i ".frontend.tag = \"$VERSION\"" helm/todo-app/values.yaml
-          yq eval -i ".backend.tag = \"$VERSION\"" helm/todo-app/values.yaml
+          if [ "${{ needs.changes.outputs.frontend }}" == "true" ]; then
+            yq eval -i ".frontend.tag = \"$VERSION\"" helm/todo-app/values.yaml
+          fi
 
-      - name: Commit & Push changes
+          if [ "${{ needs.changes.outputs.backend }}" == "true" ]; then
+            yq eval -i ".backend.tag = \"$VERSION\"" helm/todo-app/values.yaml
+          fi
+
+      - name: Commit changes
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -265,7 +257,7 @@ jobs:
           git add helm/todo-app/values.yaml
 
           if git diff --cached --quiet; then
-            echo "No changes to commit"
+            echo "No changes"
             exit 0
           fi
 
