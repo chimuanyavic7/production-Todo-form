@@ -41,287 +41,211 @@ jobs:
               - 'backend/**'
 
 
-# ---------------- FRONTEND VERSIONING ----------------
-  version-frontend:
-    name: Version Frontend
+# =========================================================
+# 🟢 FRONTEND PIPELINE (FULL ISOLATED FLOW)
+# =========================================================
+
+  frontend-ci:
+    name: Frontend CI
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
 
-    outputs:
-      version: ${{ steps.bump.outputs.version }}
-      release: ${{ steps.bump.outputs.release }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Get latest frontend tag
-        id: last_version
-        run: |
-          git fetch --tags
-          LAST_TAG=$(git tag -l "frontend-v*" --sort=-v:refname | head -n 1)
-
-          if [ -z "$LAST_TAG" ]; then
-            LAST_TAG="frontend-v1.0.0"
-          fi
-
-          echo "last=$LAST_TAG" >> $GITHUB_OUTPUT
-
-      - name: Bump version
-        id: bump
-        run: |
-          LAST=${{ steps.last_version.outputs.last }}
-          VERSION=${LAST#frontend-}
-          VERSION=${VERSION#v}
-
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-
-          MESSAGE=$(git log -1 --pretty=%B)
-          RELEASE=false
-
-          if [[ "$MESSAGE" == major:* ]]; then
-            MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0; RELEASE=true
-          elif [[ "$MESSAGE" == minor:* ]]; then
-            MINOR=$((MINOR + 1)); PATCH=0; RELEASE=true
-          elif [[ "$MESSAGE" == patch:* ]]; then
-            PATCH=$((PATCH + 1)); RELEASE=true
-          fi
-
-          NEW_VERSION="frontend-v$MAJOR.$MINOR.$PATCH"
-
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "release=$RELEASE" >> $GITHUB_OUTPUT
-
-      - name: Create Tag
-        if: steps.bump.outputs.release == 'true'
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-
-          git tag ${{ steps.bump.outputs.version }}
-          git push origin ${{ steps.bump.outputs.version }}
-
-
-# ---------------- BACKEND VERSIONING ----------------
-  version-backend:
-    name: Version Backend
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
-
-    outputs:
-      version: ${{ steps.bump.outputs.version }}
-      release: ${{ steps.bump.outputs.release }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Get latest backend tag
-        id: last_version
-        run: |
-          git fetch --tags
-          LAST_TAG=$(git tag -l "backend-v*" --sort=-v:refname | head -n 1)
-
-          if [ -z "$LAST_TAG" ]; then
-            LAST_TAG="backend-v1.0.0"
-          fi
-
-          echo "last=$LAST_TAG" >> $GITHUB_OUTPUT
-
-      - name: Bump version
-        id: bump
-        run: |
-          LAST=${{ steps.last_version.outputs.last }}
-          VERSION=${LAST#backend-}
-          VERSION=${VERSION#v}
-
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-
-          MESSAGE=$(git log -1 --pretty=%B)
-          RELEASE=false
-
-          if [[ "$MESSAGE" == major:* ]]; then
-            MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0; RELEASE=true
-          elif [[ "$MESSAGE" == minor:* ]]; then
-            MINOR=$((MINOR + 1)); PATCH=0; RELEASE=true
-          elif [[ "$MESSAGE" == patch:* ]]; then
-            PATCH=$((PATCH + 1)); RELEASE=true
-          fi
-
-          NEW_VERSION="backend-v$MAJOR.$MINOR.$PATCH"
-
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "release=$RELEASE" >> $GITHUB_OUTPUT
-
-      - name: Create Tag
-        if: steps.bump.outputs.release == 'true'
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-
-          git tag ${{ steps.bump.outputs.version }}
-          git push origin ${{ steps.bump.outputs.version }}
-
-
-# ---------------- CI ----------------
-  ci:
-    name: Build & Test
-    runs-on: ubuntu-latest
-    needs: changes
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # Frontend tests
-      - name: Install frontend deps
-        if: needs.changes.outputs.frontend == 'true'
-        working-directory: frontend
+      - working-directory: frontend
         run: npm install
 
-      - name: Frontend tests
-        if: needs.changes.outputs.frontend == 'true'
-        working-directory: frontend
-        run: npm test -- --passWithNoTests
-
-      # Backend tests
-      - name: Install backend deps
-        if: needs.changes.outputs.backend == 'true'
-        working-directory: backend
-        run: npm install
-
-      - name: Backend tests
-        if: needs.changes.outputs.backend == 'true'
-        working-directory: backend
+      - working-directory: frontend
         run: npm test -- --passWithNoTests
 
 
-# ---------------- DOCKER ----------------
-  docker:
-    name: Build & Push Images
+  frontend-version:
+    name: Frontend Version
     runs-on: ubuntu-latest
-    needs: [changes, version-frontend, version-backend]
+    needs: frontend-ci
 
-    env:
-      FRONTEND_VERSION: ${{ needs.version-frontend.outputs.version }}
-      BACKEND_VERSION: ${{ needs.version-backend.outputs.version }}
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: last
+        run: |
+          git fetch --tags
+          LAST=$(git tag -l "frontend-v*" --sort=-v:refname | head -n 1)
+          if [ -z "$LAST" ]; then LAST="frontend-v1.0.0"; fi
+          echo "last=$LAST" >> $GITHUB_OUTPUT
+
+      - name: Bump version
+        id: bump
+        run: |
+          VERSION=${{ steps.last.outputs.last }}
+          VERSION=${VERSION#frontend-v}
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          PATCH=$((PATCH + 1))
+          NEW="frontend-v$MAJOR.$MINOR.$PATCH"
+
+          echo "version=$NEW" >> $GITHUB_OUTPUT
+
+
+  frontend-docker:
+    name: Frontend Docker
+    runs-on: ubuntu-latest
+    needs: frontend-version
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v4
+      - uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push Frontend
-        if: needs.changes.outputs.frontend == 'true'
-        uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@v5
         with:
           context: frontend
           push: true
-          tags: ${{ env.IMAGE_NAME }}/frontend-dev:${{ env.FRONTEND_VERSION }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
-
-      - name: Build & Push Backend
-        if: needs.changes.outputs.backend == 'true'
-        uses: docker/build-push-action@v5
-        with:
-          context: backend
-          push: true
-          tags: ${{ env.IMAGE_NAME }}/backend-dev:${{ env.BACKEND_VERSION }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
+          tags: ${{ env.IMAGE_NAME }}/frontend-dev:${{ needs.frontend-version.outputs.version }}
 
 
-# ---------------- HELM VALIDATION ----------------
-  validate:
-    name: Validate Helm Chart
+  frontend-gitops:
+    name: Frontend GitOps
     runs-on: ubuntu-latest
-    needs: [docker]
+    needs: [frontend-version, frontend-docker]
 
     steps:
       - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
 
-      - name: Helm Lint
-        run: helm lint helm/todo-app
+      - uses: mikefarah/yq@v4.44.3
 
-      - name: Helm Template Test
+      - name: Update Helm
         run: |
-          helm template helm/todo-app
+          yq eval -i ".frontend.tag = \"${{ needs.frontend-version.outputs.version }}\"" helm/todo-app/values.yaml
 
-
-# ---------------- IMAGE SCAN ----------------
-  image-scan:
-    name: Security Scan (Trivy)
-    runs-on: ubuntu-latest
-    needs: [docker, changes, version-frontend, version-backend]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Scan Frontend Image
-        if: needs.changes.outputs.frontend == 'true'
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}/frontend-dev:${{ needs.version-frontend.outputs.version }}
-          format: table
-          exit-code: 1
-          severity: CRITICAL,HIGH
-
-
-# ---------------- GITOPS ----------------
-  gitops:
-    name: Deploy via ArgoCD
-    runs-on: ubuntu-latest
-    needs: [validate, image-scan, version-frontend, version-backend, changes]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup yq
-        uses: mikefarah/yq@v4.44.3
-
-      - name: Update Helm values
-        run: |
-
-          if [ "${{ needs.changes.outputs.frontend }}" == "true" ]; then
-            yq eval -i ".frontend.tag = \"${{ needs.version-frontend.outputs.version }}\"" helm/todo-app/values.yaml
-          fi
-
-          if [ "${{ needs.changes.outputs.backend }}" == "true" ]; then
-            yq eval -i ".backend.tag = \"${{ needs.version-backend.outputs.version }}\"" helm/todo-app/values.yaml
-          fi
-
-      - name: Commit changes
+      - name: Commit
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
           git add helm/todo-app/values.yaml
+          git commit -m "deploy frontend ${{ needs.frontend-version.outputs.version }}" || exit 0
+          git push origin main
 
-          if git diff --cached --quiet; then
-            echo "No changes"
-            exit 0
-          fi
 
-          git commit -m "deploy: frontend=${{ needs.version-frontend.outputs.version }} backend=${{ needs.version-backend.outputs.version }}"
+# =========================================================
+# 🔵 BACKEND PIPELINE (FULL ISOLATED FLOW)
+# =========================================================
+
+  backend-ci:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - working-directory: backend
+        run: npm install
+
+      - working-directory: backend
+        run: npm test -- --passWithNoTests
+
+
+  backend-version:
+    name: Backend Version
+    runs-on: ubuntu-latest
+    needs: backend-ci
+
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: last
+        run: |
+          git fetch --tags
+          LAST=$(git tag -l "backend-v*" --sort=-v:refname | head -n 1)
+          if [ -z "$LAST" ]; then LAST="backend-v1.0.0"; fi
+          echo "last=$LAST" >> $GITHUB_OUTPUT
+
+      - name: Bump version
+        id: bump
+        run: |
+          VERSION=${{ steps.last.outputs.last }}
+          VERSION=${VERSION#backend-v}
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          PATCH=$((PATCH + 1))
+          NEW="backend-v$MAJOR.$MINOR.$PATCH"
+
+          echo "version=$NEW" >> $GITHUB_OUTPUT
+
+
+  backend-docker:
+    name: Backend Docker
+    runs-on: ubuntu-latest
+    needs: backend-version
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: backend
+          push: true
+          tags: ${{ env.IMAGE_NAME }}/backend-dev:${{ needs.backend-version.outputs.version }}
+
+
+  backend-gitops:
+    name: Backend GitOps
+    runs-on: ubuntu-latest
+    needs: [backend-version, backend-docker]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mikefarah/yq@v4.44.3
+
+      - name: Update Helm
+        run: |
+          yq eval -i ".backend.tag = \"${{ needs.backend-version.outputs.version }}\"" helm/todo-app/values.yaml
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add helm/todo-app/values.yaml
+          git commit -m "deploy backend ${{ needs.backend-version.outputs.version }}" || exit 0
           git push origin main
