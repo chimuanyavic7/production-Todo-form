@@ -476,4 +476,58 @@ Final Production Routing:
 ![Traffic Flow](Images/traffic.png)
 
 
-wewe
+
+###  **Design Decisions**
+
+The architectural and engineering decisions made while building this production-grade Kubernetes platform on AWS. The goal of the project was not only to deploy an application, but also to implement a scalable, secure, automated, and cloud-native infrastructure following modern DevOps and GitOps practices.
+
+- **stateful webapp Architecture:**
+The application separates the frontend (React), backend (Node.js), and database (MongoDB) into independent layers. This improves scalability, maintainability, fault isolation, and allows each service to scale independently.
+- **Amazon EKS (Kubernetes):**
+AWS EKS was chosen to provide managed Kubernetes orchestration with self-healing, rolling updates, service discovery, and high availability while reducing operational overhead of managing Kubernetes control planes manually.
+- **Docker Containerization:**
+All services were containerized using Docker to ensure consistent environments across development, CI/CD, and production while simplifying dependency management and deployments.
+Terraform for Infrastructure as Code:
+Terraform provisions AWS infrastructure such as VPCs, subnets, security groups, EKS clusters, node groups, and networking resources. This enables repeatable, version-controlled, and automated infrastructure deployments.
+- **Private Networking Design:**
+Worker nodes are deployed in private subnets while the AWS Application Load Balancer resides in public subnets. This improves security by preventing direct internet access to Kubernetes nodes.
+- **Helm for Kubernetes Package Management:**
+Helm charts were used to template Kubernetes manifests, enabling reusable, maintainable, and environment-specific deployments with simplified upgrades and rollbacks.
+- **GitOps Deployment with ArgoCD:**
+ArgoCD continuously monitors the Git repository and synchronizes Kubernetes resources automatically. Git acts as the single source of truth for deployments and infrastructure state.
+- **CI/CD Automation with GitHub Actions:**
+GitHub Actions automates testing, Docker image builds, image versioning, and pushes images to DockerHub before triggering automated deployments through ArgoCD.
+- **AWS ALB Ingress Controller:**
+The AWS Load Balancer Controller dynamically provisions Application Load Balancers from Kubernetes ingress resources, enabling path-based routing, high availability, and native AWS integration.
+- **TLS/HTTPS with ACM:**
+AWS Certificate Manager (ACM) handles SSL certificate provisioning and automatic renewal, while TLS termination occurs at the ALB layer for secure HTTPS communication.
+- **Cluster Autoscaler:**
+Kubernetes Cluster Autoscaler dynamically adjusts node capacity based on workload demand to optimize performance and reduce infrastructure cost.
+- **Monitoring and Observability:**
+Prometheus collects cluster and application metrics, Grafana provides visualization dashboards, and AWS CloudWatch handles infrastructure monitoring and logging for operational visibility.
+- **Security Best Practices:**
+Security was implemented using IAM Roles for Service Accounts (IRSA), Kubernetes RBAC, TLS encryption, private subnets, and Kubernetes secrets to reduce credential exposure and enforce least-privilege access.
+- **High Availability and Resilience:**
+The architecture uses Kubernetes self-healing, replica-based deployments, multi-AZ AWS infrastructure, and load balancing to ensure application reliability and minimal downtime.
+
+
+###	**Assumptions made**
+- Users accessing the application have stable internet connectivity and use modern web browsers compatible with the React frontend.
+- The Kubernetes cluster is deployed in a production-ready AWS VPC with properly configured public and private subnets.
+- DockerHub is available and accessible for storing and pulling container images during deployments.
+- GitHub Actions runners have the required permissions and secrets configured to build and push Docker images successfully.
+- ArgoCD has continuous access to the Git repository and Kubernetes cluster for automated synchronization.
+- MongoDB is assumed to handle the expected application workload and storage requirements for this project scope.
+- Cluster Autoscaler assumes node groups are tagged correctly for automatic node discovery and scaling.
+- Application workloads are assumed to be stateless at the frontend and backend layers, allowing
+
+
+##    **limitations or improvements**
+- DockerHub is used as the container registry, which introduces external dependency and image pull rate limitations compared to AWS ECR.
+- Application secrets and credentials are currently stored using GitHub Secrets and repository variables. While suitable for CI/CD automation, a more secure production-grade solution would be using AWS Secrets Manager or HashiCorp Vault for centralized secret management and rotation.
+- The project currently uses a single Kubernetes environment and does not include separate development, staging, and production environments.
+- Horizontal Pod Autoscaling (HPA) for application pods is not yet implemented.
+- Backup and disaster recovery automation for MongoDB is not fully implemented.
+- Network policies for pod-to-pod communication restriction are not configured.
+- CI/CD pipeline focuses mainly on deployment automation and does not yet include advanced security scanning or automated compliance checks eg. SonarQube.
+- Implementing advanced deployment strategies such as Blue-Green or Canary over Rolling update deployments.
