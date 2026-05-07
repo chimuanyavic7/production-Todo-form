@@ -7,6 +7,9 @@ on:
     paths-ignore:
       - 'version.txt'
       - 'helm/todo-app/values.yaml'
+  pull_request:
+    paths-ignore:
+    - 'helm/todo-app/values.yaml'    
   workflow_dispatch:
 
 env:
@@ -120,6 +123,8 @@ jobs:
     name: Build & Push Images
     runs-on: ubuntu-latest
     needs: version
+
+    if: needs.version.outputs.release == 'true'
 
     env:
       VERSION: ${{ needs.version.outputs.version }}
