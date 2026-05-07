@@ -6,6 +6,7 @@ on:
       - main
     paths-ignore:
       - 'version.txt'
+      - 'helm/**'
   workflow_dispatch:
 
 env:
