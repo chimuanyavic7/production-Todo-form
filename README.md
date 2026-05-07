@@ -1,4 +1,4 @@
-###    **Architecture Overview** 
+###    **Architecture Overview** ok
 
 This project implements a production-ready statefull (three-tier) application deployed on AWS using Kubernetes. The architecture is designed for scalability, resilience, and full automation using modern DevOps practices.
 The system consists of:
