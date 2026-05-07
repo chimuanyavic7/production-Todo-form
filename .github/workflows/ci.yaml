@@ -187,7 +187,7 @@ jobs:
   image-scan:
     name: Security Scan (Trivy)
     runs-on: ubuntu-latest
-    needs: [docker, changes, version]
+    needs: [docker, version]
 
     steps:
       - uses: actions/checkout@v4
