@@ -6,7 +6,7 @@ on:
       - main
     paths-ignore:
       - 'version.txt'
-      - 'helm/**'
+      - 'helm/todo-app/values.yaml'
   workflow_dispatch:
 
 env:
