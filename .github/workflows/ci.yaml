@@ -118,47 +118,65 @@ jobs:
           echo "last=$LAST_TAG" >> $GITHUB_OUTPUT
 
 #----------------------------------------------------------          
-      - name: Bump versions
+      - name: Bump version
         id: bump
         run: |
           bump_version () {
             LAST=$1
-            VERSION=${LAST#*-v}
+            VERSION=${LAST#v}
 
             IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
 
             MESSAGE=$(git log -1 --pretty=%B)
 
+            RELEASE=false
+
             if [[ "$MESSAGE" == major:* ]]; then
-              MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              RELEASE=true
+
             elif [[ "$MESSAGE" == minor:* ]]; then
-              MINOR=$((MINOR + 1)); PATCH=0
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              RELEASE=true
+
             elif [[ "$MESSAGE" == patch:* ]]; then
               PATCH=$((PATCH + 1))
+              RELEASE=true
             fi
 
             echo "v$MAJOR.$MINOR.$PATCH"
           }
 
-          echo "frontend_version=$(bump_version ${{ steps.frontend_last.outputs.last }})" >> $GITHUB_OUTPUT
-          echo "backend_version=$(bump_version ${{ steps.backend_last.outputs.last }})" >> $GITHUB_OUTPUT
-      
-      
+          FRONTEND_VERSION=$(bump_version "${{ steps.frontend_last.outputs.last }}")
+          BACKEND_VERSION=$(bump_version "${{ steps.backend_last.outputs.last }}")
+
+          echo "frontend_version=$FRONTEND_VERSION" >> $GITHUB_OUTPUT
+          echo "backend_version=$BACKEND_VERSION" >> $GITHUB_OUTPUT
+
+
+
       - name: Create Git Tags
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          if [[ "${{ needs.changes.outputs.frontend }}" == "true" ]]; then
-            git tag frontend-${{ steps.bump.outputs.frontend_version }}
-            git push origin frontend-${{ steps.bump.outputs.frontend_version }}
+          git fetch --tags
+
+          FRONTEND_VERSION="${{ steps.bump.outputs.frontend_version }}"
+          BACKEND_VERSION="${{ steps.bump.outputs.backend_version }}"
+
+          if [[ "${{ needs.changes.outputs.frontend }}" == "true" && -n "$FRONTEND_VERSION" ]]; then
+            git tag "frontend-$FRONTEND_VERSION"
+            git push origin "frontend-$FRONTEND_VERSION"
           fi
 
-          if [[ "${{ needs.changes.outputs.backend }}" == "true" ]]; then
-            git tag backend-${{ steps.bump.outputs.backend_version }}
-            git push origin backend-${{ steps.bump.outputs.backend_version }}
+          if [[ "${{ needs.changes.outputs.backend }}" == "true" && -n "$BACKEND_VERSION" ]]; then
+            git tag "backend-$BACKEND_VERSION"
+            git push origin "backend-$BACKEND_VERSION"
           fi
-
 
 
 
