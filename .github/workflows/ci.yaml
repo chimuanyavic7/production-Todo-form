@@ -215,7 +215,7 @@ jobs:
   gitops:
     name: Update ArgoCD Repo (In-Repo GitOps)
     runs-on: ubuntu-latest
-    needs: [validate, version]
+    needs: [validate, version, image-scan]
 
     steps:
       - uses: actions/checkout@v4
