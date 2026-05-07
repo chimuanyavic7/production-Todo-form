@@ -124,8 +124,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: version
 
-    if: needs.version.outputs.release == 'true'
-
     env:
       VERSION: ${{ needs.version.outputs.version }}
 
