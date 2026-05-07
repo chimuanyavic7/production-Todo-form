@@ -2,14 +2,14 @@
 # Frontend
 # ──────────────────────────────────────
 frontend:
-  replicas: 2
-  tag: "v2.5.0"
+  replicas: 1
+  tag: "v2.1.1"
 # ──────────────────────────────────────
 # Backend
 # ──────────────────────────────────────
 backend:
-  replicas: 2
-  tag: "v2.5.0"
+  replicas: 1
+  tag: "v2.1.1"
 # ──────────────────────────────────────
 # MongoDB
 # ──────────────────────────────────────
@@ -19,6 +19,6 @@ mongo:
 # Shared
 # ──────────────────────────────────────
 ingress_alb:
-  host: myapp.local
-ingress1_nginx:
-  host: myapp.local
+  host: vanya7.com
+# ingress1_nginx:
+#  host: myapp.local
