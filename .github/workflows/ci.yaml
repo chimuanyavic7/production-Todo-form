@@ -82,7 +82,7 @@ jobs:
         id: last
         run: |
           git fetch --tags
-          LAST=$(git tag -l "frontend-v*" --sort=-v:refname | head -n 1)
+          LAST=$(git tag -l "v*" --sort=-v:refname | head -n 1)
           if [ -z "$LAST" ]; then LAST="v1.0.0"; fi
           echo "last=$LAST" >> $GITHUB_OUTPUT
 
