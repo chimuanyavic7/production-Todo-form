@@ -533,3 +533,38 @@ The architecture uses Kubernetes self-healing, replica-based deployments, multi-
 - In the current CI/CD pipeline, every commit triggers builds for both frontend and backend images, even when changes are made to only one service. The workflow does not use change detection or path-based filtering to identify affected components. This leads to unnecessary builds, increased execution time, and inefficient use of CI resources. A more optimized approach would build only the service impacted by the commit.
 - Implementing advanced deployment strategies such as Blue-Green or Canary over Rolling update deployments.
 - In the current CI/CD pipeline, every commit triggers builds for both frontend and backend images, even when changes are made to only one service. The workflow does not use change detection or path-based filtering to identify affected components. This leads to unnecessary builds, increased execution time, and inefficient use of CI resources. A more optimized approach would build only the service impacted by the commit.
+  
+---
+## **Monitoring with Prometheus and Grafana** 
+
+- **Install kube-prometheus-stack**
+  ```bash
+  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  helm repo update
+  ```
+
+- **Deploy the chart into a new namespace "monitoring"**
+  ```bash
+  kubectl create ns monitoring
+
+  helm install monitoring prometheus-community/kube-prometheus-stack -n monitoring 
+  ```
+
+- **Verify the Installation**
+  ```bash
+  kubectl get all -n monitoring
+  ```
+
+- **Prometheus UI:**
+  ```bash
+    kubectl port-forward service/prometheus-operated -n monitoring 9090:9090
+  ```
+**NOTE:** If you are using an EC2 Instance or Cloud VM, you need to pass --address 0.0.0.0 to the above command. Then you can access the UI on instance-ip:port
+
+- **Grafana UI:** password is `prom-operator`
+  ```bash
+  kubectl port-forward service/monitoring-grafana -n monitoring 8080:80
+  ```
+- Open ports of `Bastion Host` port: `9090`and `8080`
+- Access Prometheus `<BastionHostIP>:9090`
+- Access Grafana `<BastionHostIP>:8080`
